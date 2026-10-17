@@ -246,6 +246,26 @@ def test_table_columns_are_zero_copy_tensors(prog):
     assert t.column("name") == ["ann", "bob", "cy"]
 
 
+def test_nulls_are_optional_columns():
+    src = """
+type Reading:
+    id: Int
+    temp: f64?
+
+fn temp_or(t: Table[Reading], i: Int) -> f64:
+    t[i].temp.unwrap_or(-1.0)
+
+fn warm(t: Table[Reading]) -> Table[Reading]:
+    t |> std.table.sql("SELECT * FROM t WHERE temp > 20.0")
+"""
+    p = telvax.compile(src)
+    table = pa.table({"id": pa.array([1, 2], pa.int64()), "temp": pa.array([21.5, None], pa.float64())})
+    assert p.call("temp_or", table, 0) == 21.5
+    assert p.call("temp_or", table, 1) == -1.0
+    assert pa.record_batch(p.call("warm", table)).to_pylist() == [{"id": 1, "temp": 21.5}]
+    assert telvax.table(table, "Reading").column("temp") == [21.5, None]
+
+
 def test_polars_frames_are_tables(prog):
     import polars as pl
 

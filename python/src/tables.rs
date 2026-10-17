@@ -4,6 +4,7 @@ use std::sync::Arc;
 
 use arrow::array::{Array, StructArray};
 use arrow::compute::concat_batches;
+use arrow::datatypes::Schema;
 use arrow::ffi_stream::{ArrowArrayStreamReader, FFI_ArrowArrayStream};
 use arrow::record_batch::{RecordBatch, RecordBatchReader};
 use telvax_runtime::TableVal;
@@ -42,6 +43,21 @@ pub fn import_batch(obj: &Bound<'_, PyAny>) -> PyResult<RecordBatch> {
     Err(TelvaxError::new_err(
         "expected an object with __arrow_c_array__ or __arrow_c_stream__ (a PyArrow table, a Polars frame, ...)",
     ))
+}
+
+/// PyArrow and Polars mark every field nullable. Without a Telvax schema to say which columns are
+/// `T?`, a column with no nulls is required (so numeric columns stay tensors); one with nulls
+/// stays nullable and reads as a list of options.
+fn required_unless_empty(batch: RecordBatch) -> PyResult<RecordBatch> {
+    let fields: Vec<_> = batch
+        .schema()
+        .fields()
+        .iter()
+        .zip(batch.columns())
+        .map(|(f, c)| f.as_ref().clone().with_nullable(c.null_count() > 0))
+        .collect();
+    RecordBatch::try_new(Arc::new(Schema::new(fields)), batch.columns().to_vec())
+        .map_err(|e| TelvaxError::new_err(e.to_string()))
 }
 
 #[pymethods]
@@ -95,7 +111,7 @@ impl Table {
 #[pyfunction]
 #[pyo3(signature = (obj, schema = "Row"))]
 pub fn table(obj: &Bound<'_, PyAny>, schema: &str) -> PyResult<Table> {
-    let batch = import_batch(obj)?;
+    let batch = required_unless_empty(import_batch(obj)?)?;
     Ok(Table { inner: Arc::new(TableVal { schema: schema.to_string(), batch }) })
 }
 

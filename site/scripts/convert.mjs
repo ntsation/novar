@@ -1,6 +1,6 @@
 // Turns a Markdown file of the repository into a page of the site.
 //
-// The pages stay where they are (`docs/guide`, `docs/design/status.md`) so that a change and its
+// The pages stay where they are (`docs/guide`, `docs/reference`) so that a change and its
 // documentation are one pull request. This script only adds what Starlight needs: a front matter with the
 // title, and links that work on the site.
 
@@ -14,7 +14,6 @@ export const PAGES = [
   { src: 'docs/guide/use-cases.md', out: 'guide/use-cases', order: 2 },
   { src: 'docs/guide/stability.md', out: 'guide/stability', order: 3 },
   { src: 'docs/reference/std.md', out: 'reference/std', order: 1 },
-  { src: 'docs/design/status.md', out: 'status', order: 1 },
 ];
 
 /** Rewrites one link target found in `from` (a path in the repository). */

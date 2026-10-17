@@ -9,7 +9,6 @@ on:
     paths:
       - docs/guide/**
       - docs/reference/**
-      - docs/design/status.md
       - editors/vscode/syntaxes/**
       - site/**
       - .github/workflows/site.yml
@@ -17,7 +16,6 @@ on:
     paths:
       - docs/guide/**
       - docs/reference/**
-      - docs/design/status.md
       - editors/vscode/syntaxes/**
       - site/**
       - .github/workflows/site.yml

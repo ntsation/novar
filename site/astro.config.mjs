@@ -24,9 +24,11 @@ export default defineConfig({
         },
       },
       sidebar: [
-        { label: 'Guide', items: [{ autogenerate: { directory: 'guide' } }] },
-        { label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
-        { label: 'Project status', link: '/status/' },
+        // The sections of a language manual: tutorial, library reference, how-tos, language rules.
+        { slug: 'guide/tour', label: 'Tutorial' },
+        { slug: 'reference/std', label: 'Library reference' },
+        { slug: 'guide/use-cases', label: 'HOWTOs: use cases' },
+        { slug: 'guide/stability', label: 'Language stability' },
       ],
     }),
   ],

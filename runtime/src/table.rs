@@ -526,6 +526,83 @@ fn write_csv(t: &TableVal, path: &str) -> Result<(), RuntimeError> {
     w.write(&t.batch).map_err(io("writing CSV"))
 }
 
+/// Arrow IPC file (Feather v2). The file is memory-mapped and the columns point into the mapping,
+/// so nothing is copied for a file with one batch and no compression. The file must not be
+/// truncated or rewritten while a table read from it is alive.
+fn read_ipc(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+    use arrow::buffer::Buffer;
+    use arrow::ipc::convert::fb_to_schema;
+    use arrow::ipc::reader::{FileDecoder, read_footer_length};
+    use arrow::ipc::root_as_footer;
+
+    let bad = |what: &str| RuntimeError::new(format!("reading Arrow IPC `{path}`: {what}"));
+    let file = File::open(path).map_err(io(&format!("cannot open `{path}`")))?;
+    // SAFETY: the mapping is read-only. A concurrent truncation by another process can make a
+    // read fault, which is the same hazard as any memory-mapped file (documented on this fn).
+    let map = unsafe { memmap2::Mmap::map(&file) }.map_err(io("mapping the file"))?;
+    let buffer = Buffer::from(bytes::Bytes::from_owner(map));
+
+    let trailer = buffer
+        .len()
+        .checked_sub(10)
+        .ok_or_else(|| bad("the file is too short to be an Arrow IPC file"))?;
+    let footer_len = read_footer_length(buffer[trailer..].try_into().expect("10 bytes"))
+        .map_err(|e| bad(&e.to_string()))?;
+    let footer_start = trailer
+        .checked_sub(footer_len)
+        .ok_or_else(|| bad("the footer is longer than the file"))?;
+    let footer = root_as_footer(&buffer[footer_start..trailer])
+        .map_err(|e| bad(&format!("invalid footer: {e}")))?;
+    let schema = Arc::new(fb_to_schema(
+        footer
+            .schema()
+            .ok_or_else(|| bad("the footer has no schema"))?,
+    ));
+    let block_data = |block: &arrow::ipc::Block| {
+        let (offset, len) = (
+            block.offset(),
+            block.bodyLength() + i64::from(block.metaDataLength()),
+        );
+        match (usize::try_from(offset), usize::try_from(len)) {
+            (Ok(o), Ok(l)) if o.checked_add(l).is_some_and(|end| end <= footer_start) => {
+                Ok(buffer.slice_with_length(o, l))
+            }
+            _ => Err(bad("a block lies outside the file")),
+        }
+    };
+
+    let mut decoder = FileDecoder::new(schema.clone(), footer.version());
+    for block in footer.dictionaries().iter().flatten() {
+        decoder
+            .read_dictionary(block, &block_data(block)?)
+            .map_err(|e| bad(&e.to_string()))?;
+    }
+    let mut batches = Vec::new();
+    for block in footer.recordBatches().iter().flatten() {
+        if let Some(b) = decoder
+            .read_record_batch(block, &block_data(block)?)
+            .map_err(|e| bad(&e.to_string()))?
+        {
+            batches.push(b);
+        }
+    }
+    // One batch stays zero-copy; several are joined, which copies.
+    let all = match batches.len() {
+        1 => batches.pop().expect("one batch"),
+        _ => concat_batches(&schema, &batches).map_err(io("reading Arrow IPC"))?,
+    };
+    conform(&all, fields)
+}
+
+/// Writes an Arrow IPC file (Feather v2), which PyArrow, Polars and pandas read.
+fn write_ipc(t: &TableVal, path: &str) -> Result<(), RuntimeError> {
+    let file = File::create(path).map_err(io(&format!("cannot create `{path}`")))?;
+    let mut w = arrow::ipc::writer::FileWriter::try_new(file, t.batch.schema().as_ref())
+        .map_err(io("writing Arrow IPC"))?;
+    w.write(&t.batch).map_err(io("writing Arrow IPC"))?;
+    w.finish().map_err(io("writing Arrow IPC"))
+}
+
 #[cfg(feature = "tables")]
 fn read_parquet(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
@@ -595,12 +672,14 @@ pub(crate) fn call(interp: &Interp, path: &str, args: &[Value], result: &Ty) -> 
     let name = path.rsplit("::").next().unwrap_or(path);
     match name {
         "len" => Ok(Value::Int(want_table(&args[0])?.rows() as i64)),
-        "read_csv" | "read_parquet" => {
+        "read_csv" | "read_parquet" | "read_ipc" => {
             let schema = schema_name(result, path)?;
             let fields = fields_of(interp, &schema)?;
             let file = want_str(&args[0])?;
             let batch = if name == "read_csv" {
                 read_csv(&file, fields)?
+            } else if name == "read_ipc" {
+                read_ipc(&file, fields)?
             } else {
                 #[cfg(feature = "tables")]
                 {
@@ -613,6 +692,7 @@ pub(crate) fn call(interp: &Interp, path: &str, args: &[Value], result: &Ty) -> 
             };
             table(schema, batch)
         }
+        "write_ipc" => write_ipc(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),
         "write_csv" => write_csv(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),
         "write_parquet" => {
             #[cfg(feature = "tables")]

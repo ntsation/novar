@@ -337,6 +337,7 @@ fn prelude(name: &str) -> Option<Vec<String>> {
         "assert_eq" => &["std", "test", "assert_eq"],
         "read_csv" => &["std", "table", "read_csv"],
         "read_parquet" => &["std", "table", "read_parquet"],
+        "read_ipc" => &["std", "table", "read_ipc"],
         "abs" => &["std", "math", "abs"],
         "min" => &["std", "math", "min"],
         "max" => &["std", "math", "max"],

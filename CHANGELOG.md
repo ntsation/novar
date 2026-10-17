@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* **Arrow IPC / Feather:** `std.table.read_ipc(path)` and `std.table.write_ipc(table, path)`. Reading maps the
+  file into memory, so the columns are not copied (one batch, no compression). They also work in `telvax-lite`.
 * **`Date` and `Timestamp` columns:** table row types can use `Date` (Arrow `Date32`) and `Timestamp` (Arrow
   `Timestamp(µs, UTC)`). Values are ISO-8601 `Text` in the program; Parquet, SQL and PyArrow see real temporal
   types. Date64 and other timestamp units are read too. No date arithmetic yet.

@@ -122,8 +122,9 @@ specification to what exists, what was verified and how, and what is still open.
   shapes is a compile error. Symbolic dimensions (`[N]`) accept any size.
 * **Tables.** `Table[Row]` is an Arrow table whose columns are the fields of type `Row`;
   `t.score` is the column as a zero-copy tensor. `head`, `tail`, `sort_by`, `sort_by_desc`, `filter` and `concat`
-  are methods; `sql` runs a query. A column typed `T?` may hold nulls, and `Date` / `Timestamp` columns are
-  Arrow temporal types whose values are ISO-8601 `Text`.
+  are methods; `sql` runs a query. `read_ipc` / `write_ipc` use Arrow IPC (Feather) files, memory-mapped on
+  read. A column typed `T?` may hold nulls, and `Date` / `Timestamp` columns are Arrow temporal types whose
+  values are ISO-8601 `Text`.
 * **Modules.** `import util.helper`, `from crate.geometry import Point, norm`,
   `from mathx.vec import dot` (a dependency). A name that starts with `_` is private and cannot
   be imported.

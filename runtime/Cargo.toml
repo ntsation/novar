@@ -18,10 +18,13 @@ gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 # Arrow tables with CSV / Parquet ingestion and SQL (DataFusion). Off for the Wasm playground.
 # Real Ollama / OpenAI / pgvector backends (`telvax serve --live`).
 live = ["dep:ureq", "dep:postgres"]
-tables = ["dep:datafusion", "dep:tokio", "dep:parquet"]
+# `arrow/ipc_compression` reads Feather files compressed with LZ4 or Zstd (what PyArrow writes).
+tables = ["dep:datafusion", "dep:tokio", "dep:parquet", "arrow/ipc_compression"]
 
 [dependencies]
-arrow = { version = "59", default-features = false, features = ["csv"] }
+arrow = { version = "59", default-features = false, features = ["csv", "ipc"] }
+bytes = "1"
+memmap2 = "0.9"
 datafusion = { version = "55.2.0", default-features = false, features = ["parquet", "sql", "math_expressions", "string_expressions", "datetime_expressions"], optional = true }
 parquet = { version = "59", default-features = false, features = ["arrow"], optional = true }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }

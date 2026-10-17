@@ -13,6 +13,7 @@ export const PAGES = [
   { src: 'docs/guide/tour.md', out: 'guide/tour', order: 1 },
   { src: 'docs/guide/use-cases.md', out: 'guide/use-cases', order: 2 },
   { src: 'docs/guide/stability.md', out: 'guide/stability', order: 3 },
+  { src: 'docs/reference/std.md', out: 'reference/std', order: 1 },
   { src: 'docs/design/status.md', out: 'status', order: 1 },
 ];
 

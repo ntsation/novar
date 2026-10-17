@@ -81,6 +81,11 @@ See the table in the README. A quick map for the language itself: `compiler/lexe
 `compiler/parser` (syntax), `compiler/semantic` (types and checks), `runtime` (interpreter),
 `compiler/ir` and `compiler/codegen` (native), `compiler/accel` (PTX and StableHLO).
 
+A new standard library function goes in `compiler/semantic/src/stdlib.rs` (its type) and
+`runtime/src/std_impl.rs` (what it does). Describe it in `compiler/semantic/src/stdlib_docs.rs` too: a test
+fails without the description, and `docs/reference/std.md` is written from it with
+`UPDATE_REFERENCE=1 cargo test -p telvax_hir --test reference`.
+
 ## Releases
 
 A pull request merged into `main` is released automatically, and its **title** (a

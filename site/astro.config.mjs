@@ -25,6 +25,7 @@ export default defineConfig({
       },
       sidebar: [
         { label: 'Guide', items: [{ autogenerate: { directory: 'guide' } }] },
+        { label: 'Reference', items: [{ autogenerate: { directory: 'reference' } }] },
         { label: 'Project status', link: '/status/' },
       ],
     }),

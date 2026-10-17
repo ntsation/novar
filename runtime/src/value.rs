@@ -566,7 +566,7 @@ pub fn from_json(
     let bad = |what: &str| format!("expected {what}, found {json}");
     match ty {
         Ty::Prim(Prim::Bool) => json.as_bool().map(Value::Bool).ok_or_else(|| bad("bool")),
-        Ty::Prim(Prim::Str) => json.as_str().map(Value::str).ok_or_else(|| bad("Text")),
+        Ty::Prim(p) if p.is_text() => json.as_str().map(Value::str).ok_or_else(|| bad(p.name())),
         Ty::Prim(p) if p.is_float() => json
             .as_f64()
             .map(Value::Float)

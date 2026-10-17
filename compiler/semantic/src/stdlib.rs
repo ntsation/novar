@@ -259,7 +259,7 @@ fn min_max(args: &[Ty]) -> Result<Ty, String> {
     arity(args, 1)?;
     let t = elem(args, 0)?;
     match &t {
-        Ty::Prim(p) if p.is_numeric() || *p == Prim::Str => Ok(Ty::Option(Box::new(t))),
+        Ty::Prim(p) if p.is_numeric() || p.is_text() => Ok(Ty::Option(Box::new(t))),
         Ty::IntVar(_) | Ty::FloatVar(_) | Ty::Unknown => Ok(Ty::Option(Box::new(t))),
         other => Err(format!(
             "`min` and `max` need numbers or strings, found `{other}`"
@@ -1818,7 +1818,7 @@ const TENSOR_METHODS: &[BuiltinMethod] = &[
 /// the type checker lists them when a name is misspelled.
 pub fn builtin_methods(ty: &Ty) -> &'static [BuiltinMethod] {
     match ty {
-        Ty::Prim(Prim::Str) => TEXT_METHODS,
+        Ty::Prim(p) if p.is_text() => TEXT_METHODS,
         Ty::Vec(_) => LIST_METHODS,
         Ty::Option(_) => OPTION_METHODS,
         Ty::Result(..) => RESULT_METHODS,

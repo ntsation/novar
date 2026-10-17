@@ -138,7 +138,7 @@ impl Builtin {
             (_, Ty::Unknown | Ty::Never | Ty::Param(_)) => true,
             (Builtin::Num, Ty::Prim(p)) => p.is_numeric(),
             (Builtin::Num, Ty::IntVar(_) | Ty::FloatVar(_)) => true,
-            (Builtin::Ord, Ty::Prim(p)) => p.is_numeric() || *p == Prim::Str,
+            (Builtin::Ord, Ty::Prim(p)) => p.is_numeric() || p.is_text(),
             (Builtin::Ord, Ty::IntVar(_) | Ty::FloatVar(_)) => true,
             (Builtin::Eq, Ty::Fn(..)) => false,
             (Builtin::Eq, _) => true,
@@ -297,7 +297,7 @@ fn method_module(ty: &Ty, name: &str) -> Option<&'static str> {
         }
         Ty::Vec(_) if name == "join" => Some("string"),
         Ty::Vec(_) if name == "slice" => Some("iter"),
-        Ty::Prim(Prim::Str) if name == "slice" => Some("string"),
+        Ty::Prim(p) if p.is_text() && name == "slice" => Some("string"),
         Ty::Option(_)
             if matches!(
                 name,
@@ -1065,7 +1065,7 @@ impl Checker {
             "Map" => match type_args.as_slice() {
                 [k, v] if t.args.len() == 2 => {
                     let key = self.resolve_type(k);
-                    if !matches!(&key, Ty::Prim(p) if p.is_int() || matches!(p, Prim::Str | Prim::Bool))
+                    if !matches!(&key, Ty::Prim(p) if p.is_int() || p.is_text() || *p == Prim::Bool)
                         && !matches!(key, Ty::Unknown)
                     {
                         self.err(
@@ -1845,7 +1845,7 @@ impl Checker {
                 let ty = match &base.ty {
                     Ty::Vec(t) => (**t).clone(),
                     Ty::Map(_, v) => (**v).clone(),
-                    Ty::Prim(Prim::Str) => Ty::str(),
+                    Ty::Prim(p) if p.is_text() => Ty::str(),
                     Ty::Table(s) => Ty::Struct(s.clone()),
                     // Indexing peels the leading dimension: a row of a matrix is a vector.
                     Ty::Tensor { elem, shape } if shape.len() == 1 => (**elem).clone(),
@@ -4713,7 +4713,7 @@ impl Checker {
                     }
                 }
             }
-            Ty::Prim(Prim::Str) => match n {
+            Ty::Prim(p) if p.is_text() => match n {
                 "is_empty" => Ty::Fn(vec![], Box::new(Ty::bool())),
                 "len" => Ty::Fn(vec![], Box::new(Ty::Prim(Prim::U64))),
                 "trim" | "to_lowercase" | "to_uppercase" => Ty::Fn(vec![], Box::new(Ty::str())),

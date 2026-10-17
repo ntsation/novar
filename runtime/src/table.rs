@@ -8,17 +8,22 @@ use std::fs::File;
 use std::sync::Arc;
 
 use arrow::array::{
-    Array, ArrayRef, BooleanArray, Float32Array, Float64Array, Int8Array, Int16Array, Int32Array,
-    Int64Array, LargeStringArray, StringArray, UInt8Array, UInt16Array, UInt32Array, UInt64Array,
-    make_array,
+    Array, ArrayRef, BooleanArray, Date32Array, Date64Array, Float32Array, Float64Array, Int8Array,
+    Int16Array, Int32Array, Int64Array, LargeStringArray, StringArray, TimestampMicrosecondArray,
+    TimestampMillisecondArray, TimestampNanosecondArray, TimestampSecondArray, UInt8Array,
+    UInt16Array, UInt32Array, UInt64Array, make_array,
 };
 use arrow::buffer::NullBuffer;
 use arrow::compute::{
     SortColumn, SortOptions, cast, concat_batches, filter_record_batch, lexsort_to_indices,
     take_record_batch,
 };
-use arrow::datatypes::{DataType, Field, Schema};
+use arrow::datatypes::{
+    DataType, Date32Type, Date64Type, Field, Schema, TimeUnit, TimestampMicrosecondType,
+    TimestampMillisecondType, TimestampNanosecondType, TimestampSecondType,
+};
 use arrow::record_batch::RecordBatch;
+use arrow::temporal_conversions::{as_date, as_datetime};
 use serde_json::Value as Json;
 use telvax_hir::{Prim, Ty};
 
@@ -50,6 +55,8 @@ pub(crate) fn arrow_type(ty: &Ty) -> Result<DataType, RuntimeError> {
         Ty::Prim(Prim::F64) => DataType::Float64,
         Ty::Prim(Prim::Bool) => DataType::Boolean,
         Ty::Prim(Prim::Str) => DataType::Utf8,
+        Ty::Prim(Prim::Date) => DataType::Date32,
+        Ty::Prim(Prim::Timestamp) => DataType::Timestamp(TimeUnit::Microsecond, Some("UTC".into())),
         other => return err(format!("`{other}` cannot be a table column")),
     })
 }
@@ -125,8 +132,70 @@ pub(crate) fn cell(array: &ArrayRef, i: usize) -> Result<Value, RuntimeError> {
                 .expect("dtype")
                 .value(i),
         ),
+        DataType::Date32 => Value::str(format_date(as_date::<Date32Type>(i64::from(
+            array
+                .as_any()
+                .downcast_ref::<Date32Array>()
+                .expect("dtype")
+                .value(i),
+        )))?),
+        DataType::Date64 => Value::str(format_date(as_date::<Date64Type>(
+            array
+                .as_any()
+                .downcast_ref::<Date64Array>()
+                .expect("dtype")
+                .value(i),
+        ))?),
+        DataType::Timestamp(unit, _) => {
+            macro_rules! ts {
+                ($t:ty, $a:ty) => {
+                    as_datetime::<$t>(array.as_any().downcast_ref::<$a>().expect("dtype").value(i))
+                };
+            }
+            let naive = match unit {
+                TimeUnit::Second => ts!(TimestampSecondType, TimestampSecondArray),
+                TimeUnit::Millisecond => ts!(TimestampMillisecondType, TimestampMillisecondArray),
+                TimeUnit::Microsecond => ts!(TimestampMicrosecondType, TimestampMicrosecondArray),
+                TimeUnit::Nanosecond => ts!(TimestampNanosecondType, TimestampNanosecondArray),
+            };
+            let naive = naive.ok_or_else(|| RuntimeError::new("timestamp out of range"))?;
+            Value::str(
+                chrono::DateTime::<chrono::Utc>::from_naive_utc_and_offset(naive, chrono::Utc)
+                    .to_rfc3339_opts(chrono::SecondsFormat::AutoSi, true),
+            )
+        }
         other => return err(format!("unsupported column type {other}")),
     })
+}
+
+fn format_date(d: Option<chrono::NaiveDate>) -> Result<String, RuntimeError> {
+    d.map(|d| d.format("%Y-%m-%d").to_string())
+        .ok_or_else(|| RuntimeError::new("date out of range"))
+}
+
+/// `"2026-10-17"` as days since 1970-01-01.
+fn parse_date(s: &str) -> Result<i32, RuntimeError> {
+    let d = chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d")
+        .map_err(|_| RuntimeError::new(format!("`{s}` is not a Date; write it as YYYY-MM-DD")))?;
+    let epoch = chrono::NaiveDate::from_ymd_opt(1970, 1, 1).expect("epoch");
+    i32::try_from(d.signed_duration_since(epoch).num_days())
+        .map_err(|_| RuntimeError::new(format!("`{s}` is out of range for a Date")))
+}
+
+/// `"2026-10-17T16:53:03Z"` (any offset, or none meaning UTC) as microseconds since the epoch.
+fn parse_timestamp(s: &str) -> Result<i64, RuntimeError> {
+    let bad = || {
+        RuntimeError::new(format!(
+            "`{s}` is not a Timestamp; write it as YYYY-MM-DDTHH:MM:SSZ"
+        ))
+    };
+    let utc = match chrono::DateTime::parse_from_rfc3339(s) {
+        Ok(t) => t.naive_utc(),
+        Err(_) => chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%dT%H:%M:%S%.f")
+            .or_else(|_| chrono::NaiveDateTime::parse_from_str(s, "%Y-%m-%d %H:%M:%S%.f"))
+            .map_err(|_| bad())?,
+    };
+    Ok(utc.and_utc().timestamp_micros())
 }
 
 /// A cell of a column declared `T?`: `Some(value)`, or `None` for a null.
@@ -292,6 +361,21 @@ fn build_column(ty: &Ty, cells: &[Value]) -> Result<ArrayRef, RuntimeError> {
                 })
                 .collect::<Result<Vec<_>, _>>()?,
         )),
+        Ty::Prim(Prim::Date) => Arc::new(Date32Array::from(
+            text_cells(cells)?
+                .iter()
+                .map(|s| parse_date(s))
+                .collect::<Result<Vec<_>, _>>()?,
+        )),
+        Ty::Prim(Prim::Timestamp) => Arc::new(
+            TimestampMicrosecondArray::from(
+                text_cells(cells)?
+                    .iter()
+                    .map(|s| parse_timestamp(s))
+                    .collect::<Result<Vec<_>, _>>()?,
+            )
+            .with_timezone("UTC"),
+        ),
         Ty::Prim(Prim::Str) => Arc::new(StringArray::from(
             cells
                 .iter()
@@ -305,6 +389,16 @@ fn build_column(ty: &Ty, cells: &[Value]) -> Result<ArrayRef, RuntimeError> {
     })
 }
 
+fn text_cells(cells: &[Value]) -> Result<Vec<Arc<str>>, RuntimeError> {
+    cells
+        .iter()
+        .map(|c| match c {
+            Value::Str(s) => Ok(s.clone()),
+            other => err(format!("expected a Text, found {}", other.type_name())),
+        })
+        .collect()
+}
+
 /// A column of `T?`: the `None` cells become nulls. They are built as a placeholder value of the
 /// element type first, then masked by the validity bitmap.
 fn build_nullable(inner: &Ty, cells: &[Value]) -> Result<ArrayRef, RuntimeError> {
@@ -312,6 +406,8 @@ fn build_nullable(inner: &Ty, cells: &[Value]) -> Result<ArrayRef, RuntimeError>
         Ty::Prim(Prim::F32 | Prim::F64) => Value::Float(0.0),
         Ty::Prim(Prim::Bool) => Value::Bool(false),
         Ty::Prim(Prim::Str) => Value::str(""),
+        Ty::Prim(Prim::Date) => Value::str("1970-01-01"),
+        Ty::Prim(Prim::Timestamp) => Value::str("1970-01-01T00:00:00Z"),
         _ => Value::Int(0),
     };
     let mut valid = Vec::with_capacity(cells.len());

@@ -3895,6 +3895,7 @@ version = "0.0.5"
 dependencies = [
  "arrow",
  "bytemuck",
+ "chrono",
  "datafusion",
  "parquet",
  "pollster",

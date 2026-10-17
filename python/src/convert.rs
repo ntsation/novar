@@ -74,7 +74,7 @@ pub fn py_to_value(interp: &Interp, obj: &Bound<'_, PyAny>, ty: &Ty) -> PyResult
     match ty {
         Ty::Unit => Ok(Value::Unit),
         Ty::Prim(Prim::Bool) => Ok(Value::Bool(obj.extract()?)),
-        Ty::Prim(Prim::Str) => Ok(Value::str(obj.extract::<String>()?)),
+        Ty::Prim(p) if p.is_text() => Ok(Value::str(obj.extract::<String>()?)),
         Ty::Prim(p) if p.is_float() => Ok(Value::Float(obj.extract()?)),
         Ty::Prim(_) => {
             if obj.is_instance_of::<PyBool>() {

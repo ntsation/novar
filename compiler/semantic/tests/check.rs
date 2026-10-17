@@ -1564,6 +1564,33 @@ fn f(t: Table[Row]) -> List[Text]:
 }
 
 #[test]
+fn dates_and_timestamps_are_text_columns() {
+    assert_clean(
+        r#"
+type E:
+    day: Date
+    at: Timestamp?
+
+fn f(t: Table[E]) -> List[Date]:
+    t.day
+
+fn g(d: Date) -> Text:
+    d.slice(0, 4)
+
+fn h() -> Date:
+    "2026-10-17"
+"#,
+    );
+    assert_err(
+        r#"
+fn f(d: Date) -> Timestamp:
+    d
+"#,
+        "mismatched types",
+    );
+}
+
+#[test]
 fn table_columns_can_be_optional() {
     assert_clean(
         r#"

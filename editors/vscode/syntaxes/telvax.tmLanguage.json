@@ -259,7 +259,7 @@
       "patterns": [
         {
           "name": "support.type.primitive.telvax",
-          "match": "\\b(?:Int|Float|Text|Bool|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64)\\b"
+          "match": "\\b(?:Int|Float|Text|Date|Timestamp|Bool|i8|i16|i32|i64|u8|u16|u32|u64|f32|f64)\\b"
         },
         {
           "name": "support.type.builtin.telvax",

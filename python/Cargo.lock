@@ -2993,6 +2993,7 @@ name = "telvax_runtime"
 version = "0.0.5"
 dependencies = [
  "arrow",
+ "chrono",
  "datafusion",
  "parquet",
  "postgres",

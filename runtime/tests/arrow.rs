@@ -758,3 +758,114 @@ fn nullable_columns_from_rows_and_required_columns() {
         "{e}"
     );
 }
+
+const TIME_SRC: &str = r#"
+type Event:
+    id: Int
+    day: Date
+    at: Timestamp
+    seen: Date?
+
+fn load(path: Text) -> Table[Event]:
+    std.table.read_csv(path)
+
+fn save_pq(t: Table[Event], path: Text):
+    std.table.write_parquet(t, path)
+
+fn load_pq(path: Text) -> Table[Event]:
+    std.table.read_parquet(path)
+
+fn day_of(t: Table[Event], i: Int) -> Text:
+    t[i].day
+
+fn at_of(t: Table[Event], i: Int) -> Text:
+    t[i].at
+
+fn seen_or(t: Table[Event], i: Int) -> Text:
+    t[i].seen.unwrap_or("never")
+
+fn days(t: Table[Event]) -> List[Date]:
+    t.day
+
+fn recent(t: Table[Event]) -> Table[Event]:
+    t |> std.table.sql("SELECT * FROM t WHERE day >= DATE '2026-02-01' ORDER BY day")
+
+fn newest_first(t: Table[Event]) -> Table[Event]:
+    t.sort_by_desc("at")
+
+fn build() -> Table[Event]:
+    std.table.from_rows([
+        Event(id: 1, day: "2026-10-17", at: "2026-10-17T16:53:03Z", seen: None),
+        Event(id: 2, day: "2026-10-18", at: "2026-10-18T09:00:00+02:00", seen: Some("2026-10-19")),
+    ])
+
+fn bad() -> Table[Event]:
+    std.table.from_rows([Event(id: 1, day: "17/10/2026", at: "2026-10-17T16:53:03Z", seen: None)])
+"#;
+
+fn events() -> String {
+    let path = scratch("events.csv");
+    std::fs::write(
+        &path,
+        "id,day,at,seen\n1,2026-01-15,2026-01-15T08:30:00Z,\n2,2026-03-02,2026-03-02T23:59:59.5Z,2026-03-03\n",
+    )
+    .unwrap();
+    path
+}
+
+#[test]
+fn date_and_timestamp_columns() {
+    let i = load(TIME_SRC);
+    let t = i.call("load", vec![Value::str(events())]).unwrap();
+    let text = |f: &str, t: &Value, n: i64| {
+        i.call(f, vec![t.clone(), Value::Int(n)])
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(text("day_of", &t, 1), "2026-03-02");
+    assert_eq!(text("at_of", &t, 0), "2026-01-15T08:30:00Z");
+    assert_eq!(text("at_of", &t, 1), "2026-03-02T23:59:59.500Z");
+    assert_eq!(text("seen_or", &t, 0), "never");
+    assert_eq!(text("seen_or", &t, 1), "2026-03-03");
+
+    // The Arrow types are real temporal types, so Parquet and SQL see dates, not strings.
+    let Value::Table(raw) = &t else { panic!() };
+    assert_eq!(
+        raw.batch
+            .schema()
+            .field_with_name("day")
+            .unwrap()
+            .data_type(),
+        &arrow::datatypes::DataType::Date32
+    );
+    let pq = scratch("events.parquet");
+    i.call("save_pq", vec![t.clone(), Value::str(pq.clone())])
+        .unwrap();
+    let back = i.call("load_pq", vec![Value::str(pq)]).unwrap();
+    assert_eq!(text("at_of", &back, 1), "2026-03-02T23:59:59.500Z");
+    let Value::Table(r) = i.call("recent", vec![t.clone()]).unwrap() else {
+        panic!()
+    };
+    assert_eq!(r.rows(), 1);
+    let Value::Table(n) = i.call("newest_first", vec![t]).unwrap() else {
+        panic!()
+    };
+    assert!(n.row(0).unwrap().to_string().contains("2026-03-02"));
+}
+
+#[test]
+fn date_and_timestamp_from_rows_and_errors() {
+    let i = load(TIME_SRC);
+    let t = i.call("build", vec![]).unwrap();
+    let text = |f: &str, n: i64| {
+        i.call(f, vec![t.clone(), Value::Int(n)])
+            .unwrap()
+            .to_string()
+    };
+    assert_eq!(text("day_of", 1), "2026-10-18");
+    // An offset is converted to UTC.
+    assert_eq!(text("at_of", 1), "2026-10-18T07:00:00Z");
+    assert_eq!(text("seen_or", 1), "2026-10-19");
+    let e = i.call("bad", vec![]).unwrap_err().to_string();
+    assert!(e.contains("not a Date") && e.contains("YYYY-MM-DD"), "{e}");
+}

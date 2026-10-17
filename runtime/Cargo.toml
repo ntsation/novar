@@ -26,6 +26,7 @@ datafusion = { version = "55.2.0", default-features = false, features = ["parque
 parquet = { version = "59", default-features = false, features = ["arrow"], optional = true }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
 telvax_hir = { path = "../compiler/semantic" }
+chrono = { version = "0.4", default-features = false }
 serde_json = "1.0.154"
 ureq = { version = "3", features = ["json"], optional = true }
 postgres = { version = "0.19", optional = true }

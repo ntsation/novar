@@ -84,7 +84,7 @@ pub fn routes(program: &hir::Program) -> Vec<Route> {
 fn kind_of(ty: &Ty, structs: &HashMap<&str, &hir::StructDef>, stack: &mut Vec<String>) -> Kind {
     match ty {
         Ty::Prim(Prim::Bool) => Kind::Bool,
-        Ty::Prim(Prim::Str) => Kind::Str,
+        Ty::Prim(p) if p.is_text() => Kind::Str,
         Ty::Prim(p) if p.is_float() => Kind::Float,
         Ty::Prim(p) => Kind::Int(*p),
         Ty::Vec(inner) => Kind::Array(Box::new(kind_of(inner, structs, stack))),

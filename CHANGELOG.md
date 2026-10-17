@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* **`Date` and `Timestamp` columns:** table row types can use `Date` (Arrow `Date32`) and `Timestamp` (Arrow
+  `Timestamp(µs, UTC)`). Values are ISO-8601 `Text` in the program; Parquet, SQL and PyArrow see real temporal
+  types. Date64 and other timestamp units are read too. No date arithmetic yet.
 * **Optional table columns:** a field typed `T?` in a table's row type is a nullable Arrow column. Empty CSV
   cells, Parquet nulls and Arrow nulls from Python become `None`; `from_rows` writes `None` as null. A required
   column that finds an empty value now says to declare it `T?`.

@@ -19,6 +19,8 @@ gpu = ["dep:wgpu", "dep:pollster", "dep:bytemuck"]
 # Real Ollama / OpenAI / pgvector backends (`telvax serve --live`).
 live = ["dep:ureq", "dep:postgres"]
 # `arrow/ipc_compression` reads Feather files compressed with LZ4 or Zstd (what PyArrow writes).
+# Arrow Flight client (`std.table.read_flight`, `write_flight`). Off by default: it adds gRPC (tonic).
+flight = ["dep:arrow-flight", "dep:tonic", "dep:futures", "dep:tokio"]
 tables = ["dep:datafusion", "dep:tokio", "dep:parquet", "arrow/ipc_compression"]
 
 [dependencies]
@@ -28,6 +30,9 @@ memmap2 = "0.9"
 datafusion = { version = "55.2.0", default-features = false, features = ["parquet", "sql", "math_expressions", "string_expressions", "datetime_expressions"], optional = true }
 parquet = { version = "59", default-features = false, features = ["arrow"], optional = true }
 tokio = { version = "1", features = ["rt-multi-thread"], optional = true }
+arrow-flight = { version = "59", default-features = false, features = ["tls-ring", "tls-webpki-roots"], optional = true }
+tonic = { version = "0.14", features = ["tls-ring", "tls-webpki-roots"], optional = true }
+futures = { version = "0.3", default-features = false, features = ["std"], optional = true }
 telvax_hir = { path = "../compiler/semantic" }
 chrono = { version = "0.4", default-features = false }
 serde_json = "1.0.154"

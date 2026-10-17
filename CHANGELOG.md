@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* **Arrow Flight client:** `std.table.read_flight(url, ticket)` and `std.table.write_flight(table, url, path)`
+  fetch and send tables over gRPC (`grpc://` or `grpc+tls://`). They need the `net` permission and the `flight`
+  feature (`cargo install telvax --features flight`), which is off by default because it adds gRPC; without it they
+  report how to enable it. Client only.
 * **Table chunks:** `t.split(n)` cuts a table into tables of at most `n` rows that share its buffers.
   `std.table.read_csv_batches`, `read_parquet_batches` and `read_ipc_batches` (`path`, `n`) read a file into a
   `List[Table[Row]]` without building one joined copy. The chunks are all in memory; there is no lazy reader yet.

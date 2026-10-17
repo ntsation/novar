@@ -179,6 +179,12 @@ fn total_score(path: Text) -> f32:
     sum
 ```
 
+`std.table.read_flight(url, ticket)` fetches a table from an Arrow Flight server (`DoGet`), and
+`std.table.write_flight(table, url, path)` sends one (`DoPut`). The address is `grpc://host:port`, or
+`grpc+tls://host:port` for TLS. Both need the `net` permission and a build with the `flight` feature
+(`cargo install telvax --features flight`); the released binaries do not include it, and without it they report
+that. There is a client only, no Flight server.
+
 ## HTTP endpoints
 
 ```telvax ignore
@@ -291,7 +297,7 @@ telvax serve app.tvx --live --allow net,env
 | `fs.write` | `std.fs.write`, `write_csv`, `write_parquet`, `write_ipc` |
 | `fs` | `fs.read` and `fs.write` |
 | `env` | `std.env.get` |
-| `net` | the Ollama, OpenAI and PostgreSQL clients, when `--live` |
+| `net` | the Ollama, OpenAI and PostgreSQL clients, when `--live`, and `read_flight` / `write_flight` |
 | `all`, `none` | everything, nothing |
 
 A call that is not allowed stops the program and says which word to add:

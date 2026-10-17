@@ -9,6 +9,11 @@ on:
     paths:
       - docs/guide/**
       - docs/reference/**
+      - CHANGELOG.md
+      - CONTRIBUTING.md
+      - SECURITY.md
+      - CODE_OF_CONDUCT.md
+      - LICENSE-*
       - editors/vscode/syntaxes/**
       - site/**
       - .github/workflows/site.yml
@@ -16,6 +21,11 @@ on:
     paths:
       - docs/guide/**
       - docs/reference/**
+      - CHANGELOG.md
+      - CONTRIBUTING.md
+      - SECURITY.md
+      - CODE_OF_CONDUCT.md
+      - LICENSE-*
       - editors/vscode/syntaxes/**
       - site/**
       - .github/workflows/site.yml
@@ -39,6 +49,8 @@ jobs:
         working-directory: site
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0 # the date of each page's last change comes from git
       - uses: actions/setup-node@v7
         with:
           node-version: 22

@@ -1564,6 +1564,29 @@ fn f(t: Table[Row]) -> List[Text]:
 }
 
 #[test]
+fn table_batches_need_a_declared_result() {
+    assert_clean(
+        r#"
+type R:
+    id: Int
+
+fn parts(path: Text) -> List[Table[R]]:
+    std.table.read_csv_batches(path, 1000)
+
+fn halves(t: Table[R]) -> List[Table[R]]:
+    t.split(2)
+"#,
+    );
+    assert_err(
+        r#"
+fn f(path: Text):
+    let parts = std.table.read_csv_batches(path, 10)
+"#,
+        "annotate the result",
+    );
+}
+
+#[test]
 fn dates_and_timestamps_are_text_columns() {
     assert_clean(
         r#"

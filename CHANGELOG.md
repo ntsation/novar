@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* **Table chunks:** `t.split(n)` cuts a table into tables of at most `n` rows that share its buffers.
+  `std.table.read_csv_batches`, `read_parquet_batches` and `read_ipc_batches` (`path`, `n`) read a file into a
+  `List[Table[Row]]` without building one joined copy. The chunks are all in memory; there is no lazy reader yet.
 * **Arrow IPC / Feather:** `std.table.read_ipc(path)` and `std.table.write_ipc(table, path)`. Reading maps the
   file into memory, so the columns are not copied (one batch, no compression). They also work in `telvax-lite`.
 * **`Date` and `Timestamp` columns:** table row types can use `Date` (Arrow `Date32`) and `Timestamp` (Arrow

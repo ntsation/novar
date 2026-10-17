@@ -42,9 +42,12 @@ impl Capability {
     pub fn of_function(path: &str) -> Option<Capability> {
         Some(match path {
             "std::fs::read" | "std::fs::exists" => Capability::FsRead,
-            "std::table::read_csv" | "std::table::read_parquet" | "std::table::read_ipc" => {
-                Capability::FsRead
-            }
+            "std::table::read_csv"
+            | "std::table::read_parquet"
+            | "std::table::read_ipc"
+            | "std::table::read_csv_batches"
+            | "std::table::read_parquet_batches"
+            | "std::table::read_ipc_batches" => Capability::FsRead,
             "std::fs::write"
             | "std::table::write_csv"
             | "std::table::write_parquet"

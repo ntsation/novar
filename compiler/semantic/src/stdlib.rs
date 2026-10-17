@@ -901,6 +901,30 @@ fn read_result(_: &[Ty], expected: &Ty) -> Result<Ty, String> {
     expect_table(expected, "a table reader")
 }
 
+fn batches_check(args: &[Ty]) -> Result<Ty, String> {
+    arity(args, 2)?;
+    want(args, 0, &s())?;
+    want_int(args, 1)?;
+    Ok(Ty::Unknown)
+}
+
+fn batches_result(_: &[Ty], expected: &Ty) -> Result<Ty, String> {
+    match expected {
+        Ty::Vec(row) if matches!(**row, Ty::Table(_)) => Ok(expected.clone()),
+        _ => Err(
+            "cannot infer the schema of a batch reader; annotate the result, e.g. `let parts: List[Table[Row]] = ...`"
+                .to_string(),
+        ),
+    }
+}
+
+fn table_split(args: &[Ty]) -> Result<Ty, String> {
+    arity(args, 2)?;
+    let schema = want_table(args, 0)?;
+    want_int(args, 1)?;
+    Ok(Ty::Vec(Box::new(schema.map_or(Ty::Unknown, Ty::Table))))
+}
+
 fn test_assert(args: &[Ty]) -> Result<Ty, String> {
     arity(args, 1)?;
     want(args, 0, &Ty::bool())?;
@@ -1533,6 +1557,18 @@ const FUNCTIONS: &[(&str, Sig)] = &[
         "std::table::read_ipc",
         sig_expected(read_check, read_result),
     ),
+    (
+        "std::table::read_csv_batches",
+        sig_expected(batches_check, batches_result),
+    ),
+    (
+        "std::table::read_parquet_batches",
+        sig_expected(batches_check, batches_result),
+    ),
+    (
+        "std::table::read_ipc_batches",
+        sig_expected(batches_check, batches_result),
+    ),
     ("std::table::sql", sig_expected(sql_check, sql_result)),
     ("std::test::assert", sig(test_assert)),
     ("std::test::assert_eq", sig(test_assert_eq)),
@@ -1562,6 +1598,7 @@ const FUNCTIONS: &[(&str, Sig)] = &[
     ("std::table::sort_by", sig(table_sort)),
     ("std::table::sort_by_desc", sig(table_sort)),
     ("std::table::concat", sig(table_concat)),
+    ("std::table::split", sig(table_split)),
     (
         "std::table::filter",
         Sig {
@@ -1798,6 +1835,7 @@ const TABLE_METHODS: &[BuiltinMethod] = &[
     ("sort_by", "(column: Text) -> Table"),
     ("sort_by_desc", "(column: Text) -> Table"),
     ("concat", "(other: Table) -> Table"),
+    ("split", "(rows: Int) -> List[Table]"),
 ];
 
 const TENSOR_METHODS: &[BuiltinMethod] = &[

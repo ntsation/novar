@@ -992,3 +992,104 @@ fn arrow_ipc_columns_are_memory_mapped() {
         [1.0, 9.5, 3.5]
     );
 }
+
+const BATCH_SRC: &str = r#"
+type Row:
+    id: Int
+    score: f32
+    name: Text
+    ok: Bool
+
+fn csv_parts(path: Text, n: Int) -> List[Table[Row]]:
+    std.table.read_csv_batches(path, n)
+
+fn pq_parts(path: Text, n: Int) -> List[Table[Row]]:
+    std.table.read_parquet_batches(path, n)
+
+fn ipc_parts(path: Text, n: Int) -> List[Table[Row]]:
+    std.table.read_ipc_batches(path, n)
+
+fn load(path: Text) -> Table[Row]:
+    read_csv(path)
+
+fn save_pq(t: Table[Row], path: Text):
+    std.table.write_parquet(t, path)
+
+fn save_ipc(t: Table[Row], path: Text):
+    std.table.write_ipc(t, path)
+
+fn parts(t: Table[Row], n: Int) -> List[Table[Row]]:
+    t.split(n)
+
+fn total(t: List[Table[Row]]) -> f32:
+    var s = 0.0
+    for part in t:
+        for r in part:
+            s += r.score
+    s
+"#;
+
+fn lens(v: Value) -> Vec<usize> {
+    let Value::Vec(parts) = v else { panic!() };
+    parts
+        .snapshot()
+        .iter()
+        .map(|p| match p {
+            Value::Table(t) => t.rows(),
+            other => panic!("expected a table, got {other:?}"),
+        })
+        .collect()
+}
+
+#[test]
+fn tables_are_read_and_split_in_batches() {
+    let i = load(BATCH_SRC);
+    let t = i.call("load", vec![Value::str(csv())]).unwrap();
+    let pq = scratch("batches.parquet");
+    let ipc = scratch("batches.arrow");
+    i.call("save_pq", vec![t.clone(), Value::str(pq.clone())])
+        .unwrap();
+    i.call("save_ipc", vec![t.clone(), Value::str(ipc.clone())])
+        .unwrap();
+    let two = Value::Int(2);
+
+    assert_eq!(
+        lens(i.call("parts", vec![t.clone(), two.clone()]).unwrap()),
+        [2, 1]
+    );
+    assert_eq!(
+        lens(i.call("parts", vec![t.clone(), Value::Int(10)]).unwrap()),
+        [3]
+    );
+    for (f, path) in [("csv_parts", csv()), ("pq_parts", pq), ("ipc_parts", ipc)] {
+        let parts = i
+            .call(f, vec![Value::str(path.clone()), two.clone()])
+            .unwrap();
+        assert_eq!(lens(parts.clone()), [2, 1], "{f}");
+        assert_eq!(float(i.call("total", vec![parts]).unwrap()), 7.0, "{f}");
+        assert_eq!(
+            lens(i.call(f, vec![Value::str(path), Value::Int(1)]).unwrap()),
+            [1, 1, 1],
+            "{f}"
+        );
+    }
+
+    // A split shares the table's buffers.
+    let Value::Table(whole) = &t else { panic!() };
+    let Value::Vec(parts) = i.call("parts", vec![t.clone(), two.clone()]).unwrap() else {
+        panic!()
+    };
+    let Value::Table(first) = parts.snapshot()[0].clone() else {
+        panic!()
+    };
+    assert_eq!(
+        first.batch.column(1).to_data().buffers()[0].as_ptr(),
+        whole.batch.column(1).to_data().buffers()[0].as_ptr()
+    );
+
+    let e = i
+        .call("parts", vec![t, Value::Int(0)])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("at least 1"), "{e}");
+}

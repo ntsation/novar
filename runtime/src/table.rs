@@ -496,7 +496,12 @@ fn table(schema: String, batch: RecordBatch) -> Res {
     Ok(Value::Table(Arc::new(TableVal { schema, batch })))
 }
 
-fn read_csv(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+/// The rows of a CSV file in batches of at most `size` rows (not yet conformed to `fields`).
+fn csv_batches(
+    path: &str,
+    fields: &[(String, Ty)],
+    size: usize,
+) -> Result<(Arc<Schema>, Vec<RecordBatch>), RuntimeError> {
     // Read every column as nullable so `conform` can report an empty value in a required column
     // with the Telvax type, instead of Arrow's message.
     let schema = Arc::new(Schema::new(
@@ -509,11 +514,37 @@ fn read_csv(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeE
     let file = File::open(path).map_err(io(&format!("cannot open `{path}`")))?;
     let reader = arrow::csv::ReaderBuilder::new(schema.clone())
         .with_header(true)
+        .with_batch_size(size)
         .build(file)
         .map_err(io("reading CSV"))?;
     let batches = reader
         .collect::<Result<Vec<_>, _>>()
         .map_err(io("reading CSV"))?;
+    Ok((schema, batches))
+}
+
+/// The rows per chunk: at least one.
+fn chunk_size(v: &Value) -> Result<usize, RuntimeError> {
+    match v {
+        Value::Int(n) if *n >= 1 => Ok(*n as usize),
+        Value::Int(_) => err("the chunk size must be at least 1"),
+        other => err(format!(
+            "the chunk size must be an integer, found {}",
+            other.type_name()
+        )),
+    }
+}
+
+/// `batch` cut into pieces of at most `size` rows. The pieces share its buffers.
+fn slices(batch: &RecordBatch, size: usize) -> Vec<RecordBatch> {
+    (0..batch.num_rows())
+        .step_by(size)
+        .map(|start| batch.slice(start, size.min(batch.num_rows() - start)))
+        .collect()
+}
+
+fn read_csv(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+    let (schema, batches) = csv_batches(path, fields, 1024)?;
     let all = concat_batches(&schema, &batches).map_err(io("reading CSV"))?;
     conform(&all, fields)
 }
@@ -530,6 +561,17 @@ fn write_csv(t: &TableVal, path: &str) -> Result<(), RuntimeError> {
 /// so nothing is copied for a file with one batch and no compression. The file must not be
 /// truncated or rewritten while a table read from it is alive.
 fn read_ipc(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+    let (schema, mut batches) = ipc_batches(path)?;
+    // One batch stays zero-copy; several are joined, which copies.
+    let all = match batches.len() {
+        1 => batches.pop().expect("one batch"),
+        _ => concat_batches(&schema, &batches).map_err(io("reading Arrow IPC"))?,
+    };
+    conform(&all, fields)
+}
+
+/// The batches of an Arrow IPC file, as the file stores them.
+fn ipc_batches(path: &str) -> Result<(Arc<Schema>, Vec<RecordBatch>), RuntimeError> {
     use arrow::buffer::Buffer;
     use arrow::ipc::convert::fb_to_schema;
     use arrow::ipc::reader::{FileDecoder, read_footer_length};
@@ -586,12 +628,7 @@ fn read_ipc(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeE
             batches.push(b);
         }
     }
-    // One batch stays zero-copy; several are joined, which copies.
-    let all = match batches.len() {
-        1 => batches.pop().expect("one batch"),
-        _ => concat_batches(&schema, &batches).map_err(io("reading Arrow IPC"))?,
-    };
-    conform(&all, fields)
+    Ok((schema, batches))
 }
 
 /// Writes an Arrow IPC file (Feather v2), which PyArrow, Polars and pandas read.
@@ -603,17 +640,31 @@ fn write_ipc(t: &TableVal, path: &str) -> Result<(), RuntimeError> {
     w.finish().map_err(io("writing Arrow IPC"))
 }
 
+/// The rows of a Parquet file in batches of at most `size` rows, when given.
 #[cfg(feature = "tables")]
-fn read_parquet(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+fn parquet_batches(
+    path: &str,
+    size: Option<usize>,
+) -> Result<(Arc<Schema>, Vec<RecordBatch>), RuntimeError> {
     use parquet::arrow::arrow_reader::ParquetRecordBatchReaderBuilder;
     let file = File::open(path).map_err(io(&format!("cannot open `{path}`")))?;
-    let builder = ParquetRecordBatchReaderBuilder::try_new(file).map_err(io("reading Parquet"))?;
+    let mut builder =
+        ParquetRecordBatchReaderBuilder::try_new(file).map_err(io("reading Parquet"))?;
+    if let Some(n) = size {
+        builder = builder.with_batch_size(n);
+    }
     let file_schema = builder.schema().clone();
     let batches = builder
         .build()
         .map_err(io("reading Parquet"))?
         .collect::<Result<Vec<_>, _>>()
         .map_err(io("reading Parquet"))?;
+    Ok((file_schema, batches))
+}
+
+#[cfg(feature = "tables")]
+fn read_parquet(path: &str, fields: &[(String, Ty)]) -> Result<RecordBatch, RuntimeError> {
+    let (file_schema, batches) = parquet_batches(path, None)?;
     let all = concat_batches(&file_schema, &batches).map_err(io("reading Parquet"))?;
     conform(&all, fields)
 }
@@ -691,6 +742,50 @@ pub(crate) fn call(interp: &Interp, path: &str, args: &[Value], result: &Ty) -> 
                 }
             };
             table(schema, batch)
+        }
+        "read_csv_batches" | "read_parquet_batches" | "read_ipc_batches" => {
+            let Ty::Vec(row) = result else {
+                return err(format!("`{path}` needs a statically known result type"));
+            };
+            let schema = schema_name(row, path)?;
+            let fields = fields_of(interp, &schema)?;
+            let file = want_str(&args[0])?;
+            let size = chunk_size(&args[1])?;
+            let batches: Vec<RecordBatch> = match name {
+                "read_csv_batches" => csv_batches(&file, fields, size)?.1,
+                "read_ipc_batches" => ipc_batches(&file)?
+                    .1
+                    .iter()
+                    .flat_map(|b| slices(b, size))
+                    .collect(),
+                _ => {
+                    #[cfg(feature = "tables")]
+                    {
+                        parquet_batches(&file, Some(size))?.1
+                    }
+                    #[cfg(not(feature = "tables"))]
+                    {
+                        return unavailable("Parquet");
+                    }
+                }
+            };
+            Ok(Value::vec(
+                batches
+                    .iter()
+                    .filter(|b| b.num_rows() > 0)
+                    .map(|b| table(schema.clone(), conform(b, fields)?))
+                    .collect::<Result<_, _>>()?,
+            ))
+        }
+        "split" => {
+            let t = want_table(&args[0])?;
+            let size = chunk_size(&args[1])?;
+            Ok(Value::vec(
+                slices(&t.batch, size)
+                    .into_iter()
+                    .map(|b| table(t.schema.clone(), b))
+                    .collect::<Result<_, _>>()?,
+            ))
         }
         "write_ipc" => write_ipc(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),
         "write_csv" => write_csv(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),

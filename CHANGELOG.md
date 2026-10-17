@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+* **Documentation versions:** the site keeps one folder per version, `dev` (the `main` branch) and one for each
+  series of release (`0.30`), with a version picker in the header, like the manual of other languages. The root
+  of the site goes to the newest series, and a link without a version is sent there. Every release publishes the
+  documentation of its series.
 * **Command line reference:** `docs/reference/cli.md` (and the site) describes every `telvax` command and option.
   A test checks that its synopsis is the output of `telvax --help` and that each command has a section.
 * **Site, like the Python manual:** "What's new" (this changelog), an About section (reporting problems and

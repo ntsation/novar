@@ -33,6 +33,8 @@ The full RAG service from the specification is in [`examples/rag-service.tvx`](e
 > bugs and breaking changes in the library and tools; the syntax of edition 2026 is frozen
 > ([`docs/guide/stability.md`](docs/guide/stability.md)). What works, and what has not been run on real hardware, is listed in
 > [`docs/design/status.md`](docs/design/status.md). Bug reports and ideas are welcome in the issues.
+>
+> The documentation is also a website: <https://telvax.github.io/telvax/>.
 
 ## What you can build
 

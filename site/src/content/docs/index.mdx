@@ -1,0 +1,61 @@
+---
+title: Telvax
+description: A statically typed, compiled language for data, ML pipelines and AI serving.
+template: splash
+hero:
+  tagline: A statically typed, compiled language for data processing, ML pipelines and AI serving. Easy to read for anyone who knows Python. Early alpha.
+  actions:
+    - text: A tour of Telvax
+      link: guide/tour/
+      icon: right-arrow
+    - text: Use cases
+      link: guide/use-cases/
+      variant: minimal
+    - text: GitHub
+      link: https://github.com/telvax/telvax
+      variant: minimal
+      icon: external
+---
+
+import { Card, CardGrid } from '@astrojs/starlight/components';
+
+```telvax
+type QueryPayload:
+    query: Text
+    top_k: i32
+
+fn embed(text: Text) -> Tensor[f32, 768]:
+    text |> std.text.clean_whitespace() |> std.text.truncate(512) |> embedder.embed()
+
+@endpoint(POST, "/v1/embed")
+fn handle(payload: QueryPayload) -> Result[Tensor[f32, 768], Status]:
+    if payload.query.is_empty():
+        return Err(Status.BadRequest("empty query"))
+    Ok(embed(payload.query))
+```
+
+<CardGrid>
+  <Card title="Shapes in the types" icon="seti:graphql">
+    `Tensor[f32, 2, 3]` is checked before the program runs, so a shape mismatch is a compile error.
+  </Card>
+  <Card title="Typed tables on Arrow" icon="document">
+    `Table[Row]` is an Arrow table. A column is read as a tensor without copying it, and SQL runs on it.
+  </Card>
+  <Card title="Endpoints from functions" icon="rocket">
+    A function marked `@endpoint` becomes an HTTP route with validation and JSON handling generated for it.
+  </Card>
+  <Card title="Errors as values" icon="approve-check">
+    `Result`, `Option`, `?` and `if x is Some(v)` instead of exceptions.
+  </Card>
+</CardGrid>
+
+## Install
+
+```sh
+curl -fsSL https://raw.githubusercontent.com/telvax/telvax/main/scripts/install.sh | sh
+telvax --version
+```
+
+The script downloads a release binary or, if there is none for your system, builds from source
+(it needs [Rust](https://rustup.rs)). Then read [the tour](guide/tour/), and see
+[what works and what has not been run on real hardware](status/).

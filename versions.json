@@ -1,0 +1,12 @@
+[
+  {
+    "version": "0.30",
+    "label": "0.30 (latest)",
+    "latest": true
+  },
+  {
+    "version": "dev",
+    "label": "dev (main)",
+    "latest": false
+  }
+]

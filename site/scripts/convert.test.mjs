@@ -3,19 +3,20 @@ import test from 'node:test';
 import { PAGES, convert, rewriteLink } from './convert.mjs';
 
 const tour = PAGES.find((p) => p.src === 'docs/guide/tour.md');
-const status = PAGES.find((p) => p.src === 'docs/design/status.md');
+const std = PAGES.find((p) => p.src === 'docs/reference/std.md');
 
 test('links between pages become relative site links', () => {
   assert.equal(rewriteLink('use-cases.md', tour.src), '../use-cases/');
   assert.equal(rewriteLink('tour.md#distribution', 'docs/guide/use-cases.md'), '../tour/#distribution');
-  assert.equal(rewriteLink('../design/status.md', tour.src), '../../status/');
-  assert.equal(rewriteLink('../guide/tour.md#x', status.src), '../guide/tour/#x');
+  assert.equal(rewriteLink('../reference/std.md#text', tour.src), '../../reference/std/#text');
+  assert.equal(rewriteLink('../guide/tour.md#x', std.src), '../../guide/tour/#x');
 });
 
 test('links to the repository point at GitHub', () => {
   const repo = 'https://github.com/telvax/telvax';
   assert.equal(rewriteLink('../../examples/ml/forward.tvx', tour.src), `${repo}/blob/main/examples/ml/forward.tvx`);
   assert.equal(rewriteLink('../../examples', tour.src), `${repo}/tree/main/examples`);
+  assert.equal(rewriteLink('../design/status.md', tour.src), `${repo}/blob/main/docs/design/status.md`);
   assert.equal(rewriteLink('../../README.md#language-notes', tour.src), `${repo}/blob/main/README.md#language-notes`);
 });
 

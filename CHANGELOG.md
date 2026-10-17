@@ -5,7 +5,7 @@
 * **Standard library reference:** `docs/reference/std.md` (and the site) lists every `std` function, type and
   built-in method with its signature and what it does. A test fails when an item has no description, when a
   signature has a different number of parameters than the type checker takes, or when the page is out of date.
-* **Documentation site:** the guide and the status page are built into a website with Starlight and published to
+* **Documentation site:** the guide and the library reference are built into a website with Starlight and published to
   GitHub Pages (`site/`). `telvax` code blocks are highlighted with the VS Code grammar. Pull requests that touch
   the documentation build the site and check its links.
 * **Arrow Flight client:** `std.table.read_flight(url, ticket)` and `std.table.write_flight(table, url, path)`

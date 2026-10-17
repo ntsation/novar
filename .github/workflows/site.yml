@@ -8,6 +8,7 @@ on:
     branches: [main]
     paths:
       - docs/guide/**
+      - docs/reference/**
       - docs/design/status.md
       - editors/vscode/syntaxes/**
       - site/**
@@ -15,6 +16,7 @@ on:
   pull_request:
     paths:
       - docs/guide/**
+      - docs/reference/**
       - docs/design/status.md
       - editors/vscode/syntaxes/**
       - site/**

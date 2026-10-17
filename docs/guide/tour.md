@@ -647,6 +647,7 @@ fn main():
         print(f"{row.region}: {row.revenue}")
 ```
 
+* Every function and method of the standard library, with its type, is in [the reference](../reference/std.md).
 * `print`, `read_csv`, `read_parquet` and `read_ipc` need no `std.` prefix. `print` ends the line;
   `std.io.print` writes without one.
 * Methods on tensors are the `std.tensor` functions: `x.matmul(w).relu().softmax()`,

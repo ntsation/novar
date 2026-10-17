@@ -17,6 +17,7 @@ export const PAGES = [
   { src: 'docs/guide/use-cases.md', out: 'guide/use-cases', order: 2 },
   { src: 'docs/guide/stability.md', out: 'guide/stability', order: 3 },
   { src: 'docs/reference/std.md', out: 'reference/std', order: 1 },
+  { src: 'docs/reference/cli.md', out: 'reference/cli', order: 2 },
   { src: 'CHANGELOG.md', out: 'whats-new', order: 1, title: "What's new" },
   { src: 'CONTRIBUTING.md', out: 'about/contributing', order: 1, title: 'Reporting problems and contributing' },
   { src: 'SECURITY.md', out: 'about/security', order: 2 },

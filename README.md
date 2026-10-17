@@ -35,7 +35,8 @@ The full RAG service from the specification is in [`examples/rag-service.tvx`](e
 > [`docs/design/status.md`](docs/design/status.md). Bug reports and ideas are welcome in the issues.
 >
 > The documentation is also a website: <https://telvax.github.io/telvax/>. Every function and method of the standard
-> library is in [`docs/reference/std.md`](docs/reference/std.md).
+> library is in [`docs/reference/std.md`](docs/reference/std.md), and every command in
+> [`docs/reference/cli.md`](docs/reference/cli.md).
 
 ## What you can build
 

@@ -869,3 +869,126 @@ fn date_and_timestamp_from_rows_and_errors() {
     let e = i.call("bad", vec![]).unwrap_err().to_string();
     assert!(e.contains("not a Date") && e.contains("YYYY-MM-DD"), "{e}");
 }
+
+const IPC_SRC: &str = r#"
+type Row:
+    id: Int
+    score: f32
+    name: Text
+    ok: Bool
+
+fn load(path: Text) -> Table[Row]:
+    read_csv(path)
+
+fn save(t: Table[Row], path: Text):
+    std.table.write_ipc(t, path)
+
+fn open(path: Text) -> Table[Row]:
+    read_ipc(path)
+
+fn scores(t: Table[Row]) -> Tensor[f32, N]:
+    t.score
+"#;
+
+#[test]
+fn arrow_ipc_round_trip() {
+    let i = load(IPC_SRC);
+    let t = i.call("load", vec![Value::str(csv())]).unwrap();
+    let path = scratch("rows.arrow");
+    i.call("save", vec![t.clone(), Value::str(path.clone())])
+        .unwrap();
+    let back = i.call("open", vec![Value::str(path)]).unwrap();
+    let (Value::Table(a), Value::Table(b)) = (&back, &t) else {
+        panic!()
+    };
+    assert_eq!(a.batch.columns(), b.batch.columns());
+    assert_eq!(
+        tensor(i.call("scores", vec![back]).unwrap()).to_f32_vec(),
+        [1.0, 2.5, 3.5]
+    );
+}
+
+#[test]
+fn arrow_ipc_reads_dictionary_columns_and_reports_bad_files() {
+    use arrow::array::{BooleanArray, DictionaryArray, Float32Array, Int64Array};
+    use arrow::datatypes::Int32Type;
+    use arrow::record_batch::RecordBatch;
+
+    // What pandas / Polars write for a categorical column.
+    let batch = RecordBatch::try_from_iter([
+        ("id", Arc::new(Int64Array::from(vec![1, 2])) as _),
+        ("score", Arc::new(Float32Array::from(vec![0.5, 1.5])) as _),
+        (
+            "name",
+            Arc::new(DictionaryArray::<Int32Type>::from_iter(["a", "b"])) as _,
+        ),
+        ("ok", Arc::new(BooleanArray::from(vec![true, false])) as _),
+    ])
+    .unwrap();
+    let path = scratch("dict.arrow");
+    let mut w = arrow::ipc::writer::FileWriter::try_new(
+        std::fs::File::create(&path).unwrap(),
+        &batch.schema(),
+    )
+    .unwrap();
+    w.write(&batch).unwrap();
+    w.finish().unwrap();
+    drop(w);
+    let i = load(IPC_SRC);
+    let Value::Table(t) = i.call("open", vec![Value::str(path)]).unwrap() else {
+        panic!()
+    };
+    assert_eq!(
+        t.row(1).unwrap().to_string(),
+        "Row(id=2, score=1.5, name=\"b\", ok=False)"
+    );
+
+    let junk = scratch("junk.arrow");
+    std::fs::write(&junk, b"not an arrow file at all").unwrap();
+    let e = i
+        .call("open", vec![Value::str(junk)])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("Arrow IPC"), "{e}");
+    let short = scratch("short.arrow");
+    std::fs::write(&short, b"abc").unwrap();
+    let e = i
+        .call("open", vec![Value::str(short)])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("too short"), "{e}");
+    let e = i
+        .call("open", vec![Value::str(scratch("missing.arrow"))])
+        .unwrap_err()
+        .to_string();
+    assert!(e.contains("cannot open"), "{e}");
+}
+
+/// The columns point into the file mapping: bytes changed in the file show up in the table
+/// without reading it again. A copying reader would still show the old value.
+#[cfg(unix)]
+#[test]
+fn arrow_ipc_columns_are_memory_mapped() {
+    use std::io::{Seek, SeekFrom, Write};
+    let i = load(IPC_SRC);
+    let t = i.call("load", vec![Value::str(csv())]).unwrap();
+    let path = scratch("mapped.arrow");
+    i.call("save", vec![t, Value::str(path.clone())]).unwrap();
+    let back = i.call("open", vec![Value::str(path.clone())]).unwrap();
+
+    let bytes = std::fs::read(&path).unwrap();
+    let needle = 2.5f32.to_le_bytes();
+    let at = bytes
+        .windows(4)
+        .position(|w| w == needle)
+        .expect("2.5 in file");
+    let mut f = std::fs::OpenOptions::new().write(true).open(&path).unwrap();
+    f.seek(SeekFrom::Start(at as u64)).unwrap();
+    f.write_all(&9.5f32.to_le_bytes()).unwrap();
+    f.sync_all().unwrap();
+
+    assert_eq!(
+        tensor(i.call("scores", vec![back]).unwrap()).to_f32_vec(),
+        [1.0, 9.5, 3.5]
+    );
+}

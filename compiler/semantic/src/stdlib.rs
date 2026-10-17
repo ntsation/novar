@@ -1529,6 +1529,10 @@ const FUNCTIONS: &[(&str, Sig)] = &[
         "std::table::read_parquet",
         sig_expected(read_check, read_result),
     ),
+    (
+        "std::table::read_ipc",
+        sig_expected(read_check, read_result),
+    ),
     ("std::table::sql", sig_expected(sql_check, sql_result)),
     ("std::test::assert", sig(test_assert)),
     ("std::test::assert_eq", sig(test_assert_eq)),
@@ -1552,6 +1556,7 @@ const FUNCTIONS: &[(&str, Sig)] = &[
     ("std::table::len", sig(table_len)),
     ("std::table::write_csv", sig(write_table)),
     ("std::table::write_parquet", sig(write_table)),
+    ("std::table::write_ipc", sig(write_table)),
     ("std::table::head", sig(table_head)),
     ("std::table::tail", sig(table_head)),
     ("std::table::sort_by", sig(table_sort)),

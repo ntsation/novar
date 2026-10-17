@@ -42,10 +42,13 @@ impl Capability {
     pub fn of_function(path: &str) -> Option<Capability> {
         Some(match path {
             "std::fs::read" | "std::fs::exists" => Capability::FsRead,
-            "std::table::read_csv" | "std::table::read_parquet" => Capability::FsRead,
-            "std::fs::write" | "std::table::write_csv" | "std::table::write_parquet" => {
-                Capability::FsWrite
+            "std::table::read_csv" | "std::table::read_parquet" | "std::table::read_ipc" => {
+                Capability::FsRead
             }
+            "std::fs::write"
+            | "std::table::write_csv"
+            | "std::table::write_parquet"
+            | "std::table::write_ipc" => Capability::FsWrite,
             "std::env::get" => Capability::Env,
             "std::ai::embeddings::OllamaEmbedder::new"
             | "std::ai::llm::OpenAIClient::new"

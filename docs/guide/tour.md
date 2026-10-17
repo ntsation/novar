@@ -105,7 +105,7 @@ fn mean_score(t: Table[Row]) -> f32:
     std.tensor.mean(t.score)  # a zero-copy column
 ```
 
-`std.table.read_csv(path)` and `read_parquet` need the result type to be written down
+`std.table.read_csv(path)`, `read_parquet` and `read_ipc` need the result type to be written down
 (`let t: Table[Row] = ...`), as do `std.tensor.zeros()`, `from_vec` and `reshape`.
 
 A table has methods that keep its rows' type. They do not need SQL, so they also work in `telvax-lite`:
@@ -154,6 +154,11 @@ type Event:
 fn latest(t: Table[Event]) -> Table[Event]:
     t.sort_by_desc("day").head(1)
 ```
+
+`std.table.read_ipc(path)` and `write_ipc(table, path)` read and write an Arrow IPC file (Feather v2), which PyArrow,
+Polars and pandas also read and write. `read_ipc` maps the file into memory and the columns point into it, so a
+file with one batch is not copied. Do not rewrite or truncate a file while a table read from it is in use. Files
+compressed with LZ4 or Zstd are decoded (copying) in the full `telvax`; `telvax-lite` reads uncompressed files.
 
 ## HTTP endpoints
 
@@ -263,8 +268,8 @@ telvax serve app.tvx --live --allow net,env
 
 | Word | Allows |
 |---|---|
-| `fs.read` | `std.fs.read`, `std.fs.exists`, `read_csv`, `read_parquet` |
-| `fs.write` | `std.fs.write`, `write_csv`, `write_parquet` |
+| `fs.read` | `std.fs.read`, `std.fs.exists`, `read_csv`, `read_parquet`, `read_ipc` |
+| `fs.write` | `std.fs.write`, `write_csv`, `write_parquet`, `write_ipc` |
 | `fs` | `fs.read` and `fs.write` |
 | `env` | `std.env.get` |
 | `net` | the Ollama, OpenAI and PostgreSQL clients, when `--live` |
@@ -617,7 +622,7 @@ fn main():
         print(f"{row.region}: {row.revenue}")
 ```
 
-* `print`, `read_csv` and `read_parquet` need no `std.` prefix. `print` ends the line;
+* `print`, `read_csv`, `read_parquet` and `read_ipc` need no `std.` prefix. `print` ends the line;
   `std.io.print` writes without one.
 * Methods on tensors are the `std.tensor` functions: `x.matmul(w).relu().softmax()`,
   `sales.price.mean()`. A table has `sql`. They are the same calls underneath, so

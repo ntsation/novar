@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+* **Documentation site:** the guide and the status page are built into a website with Starlight and published to
+  GitHub Pages (`site/`). `telvax` code blocks are highlighted with the VS Code grammar. Pull requests that touch
+  the documentation build the site and check its links.
 * **Arrow Flight client:** `std.table.read_flight(url, ticket)` and `std.table.write_flight(table, url, path)`
   fetch and send tables over gRPC (`grpc://` or `grpc+tls://`). They need the `net` permission and the `flight`
   feature (`cargo install telvax --features flight`), which is off by default because it adds gRPC; without it they

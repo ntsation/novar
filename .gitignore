@@ -31,3 +31,9 @@ playground/e2e/playwright-report/
 
 # Downloaded VS Code for the extension tests
 editors/vscode/.vscode-test/
+
+# Documentation site: the pages are copied from docs/ by `npm run sync`
+site/dist/
+site/.astro/
+site/src/content/docs/guide/
+site/src/content/docs/status.md

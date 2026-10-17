@@ -342,13 +342,15 @@ fn builtin_result(ty: &Ty, name: &str) -> Option<Ty> {
     let text = || Ty::Prim(Prim::Str);
     let option = |t: Ty| Ty::Option(Box::new(t));
     Some(match (ty, name) {
-        (Ty::Prim(Prim::Str), "trim" | "to_lowercase" | "to_uppercase" | "replace" | "slice") => {
+        (Ty::Prim(p), "trim" | "to_lowercase" | "to_uppercase" | "replace" | "slice")
+            if p.is_text() =>
+        {
             text()
         }
-        (Ty::Prim(Prim::Str), "split" | "chars" | "lines") => Ty::Vec(Box::new(text())),
-        (Ty::Prim(Prim::Str), "find") => option(Ty::Prim(Prim::U64)),
-        (Ty::Prim(Prim::Str), "to_int") => option(Ty::Prim(Prim::I64)),
-        (Ty::Prim(Prim::Str), "to_float") => option(Ty::Prim(Prim::F64)),
+        (Ty::Prim(p), "split" | "chars" | "lines") if p.is_text() => Ty::Vec(Box::new(text())),
+        (Ty::Prim(p), "find") if p.is_text() => option(Ty::Prim(Prim::U64)),
+        (Ty::Prim(p), "to_int") if p.is_text() => option(Ty::Prim(Prim::I64)),
+        (Ty::Prim(p), "to_float") if p.is_text() => option(Ty::Prim(Prim::F64)),
         (Ty::Vec(e), "first" | "last" | "pop" | "get") => option((**e).clone()),
         (Ty::Vec(_), "filter" | "take" | "skip" | "slice") => ty.clone(),
         (Ty::Option(i), "unwrap" | "expect" | "unwrap_or" | "unwrap_or_else") => (**i).clone(),

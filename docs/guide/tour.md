@@ -32,7 +32,7 @@ fn main() -> i32:
   `return` is only needed to leave early.
 * Types start with a capital, like the types you write yourself: `Int` (64 bits), `Float`
   (64 bits), `Bool`, `Text`, `List[T]`, `Map[K, V]`, `T?` (a value or `None`), `Result[T, E]`,
-  `Tensor[T, dims]` and `Table[Row]`. When the size matters: `i8`, `i16`, `i32`, `u8` to `u64`,
+  `Tensor[T, dims]` and `Table[Row]` (a table's columns may also be `Date` and `Timestamp`). When the size matters: `i8`, `i16`, `i32`, `u8` to `u64`,
   `f32`, `f64`.
 * A function without `->` returns the type of its last expression: `fn double(x: Int): x * 2` returns
   an `Int`. It works for methods too (`fn area(self): self.r * self.r`), and a method that implements a
@@ -137,6 +137,22 @@ type Reading:
 
 fn warm(t: Table[Reading]) -> Table[Reading]:
     t.filter(r => r.temp.unwrap_or(0.0) > 20.0)
+```
+
+`Date` and `Timestamp` are column types for dates and times. In the table they are Arrow `Date32` and
+`Timestamp(µs, UTC)`, so Parquet, SQL and PyArrow see real dates. In the program a value is a `Text` in ISO-8601:
+`"2026-10-17"` and `"2026-10-17T16:53:03Z"`. `from_rows` and CSV accept any offset (`+02:00`) and store UTC; a
+text that is not a date is an error that says to write `YYYY-MM-DD`. There is no date arithmetic yet: compare
+the text, sort the table, or use SQL.
+
+```telvax
+type Event:
+    id: Int
+    day: Date
+    at: Timestamp?
+
+fn latest(t: Table[Event]) -> Table[Event]:
+    t.sort_by_desc("day").head(1)
 ```
 
 ## HTTP endpoints

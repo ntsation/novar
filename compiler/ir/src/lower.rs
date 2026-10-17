@@ -134,7 +134,9 @@ impl<'c, 'p> Cx<'c, 'p> {
                 Prim::F32 => Type::float32(self.ctx),
                 Prim::F64 => Type::float64(self.ctx),
                 Prim::Bool => self.i(1),
-                Prim::Str => return Ok(vec![self.ptr(), self.i(64)]),
+                Prim::Str | Prim::Date | Prim::Timestamp => {
+                    return Ok(vec![self.ptr(), self.i(64)]);
+                }
             }],
             Ty::Struct(name) => {
                 if depth > 16 {
@@ -151,7 +153,7 @@ impl<'c, 'p> Cx<'c, 'p> {
             }
             Ty::Tensor { .. } if tensor::tensor_info(ty).is_some() => vec![self.ptr()],
             Ty::Tensor { .. } if tensor::tensor_info(ty).is_some() => vec![self.ptr()],
-            Ty::Vec(elem) if matches!(&**elem, Ty::Prim(p) if *p != Prim::Str) => {
+            Ty::Vec(elem) if matches!(&**elem, Ty::Prim(p) if !p.is_text()) => {
                 vec![self.ptr(), self.i(64)]
             }
             other => return Err(format!("`{other}`")),
@@ -460,9 +462,9 @@ fn lower_fn<'c>(cx: &Cx<'c, '_>, f: &hir::FnDef) -> Result<melior::ir::Operation
     let scalar_sig = f
         .params
         .iter()
-        .all(|p| matches!(p.ty, Ty::Prim(q) if q != Prim::Str))
+        .all(|p| matches!(p.ty, Ty::Prim(q) if !q.is_text()))
         && matches!(f.ret, Ty::Unit | Ty::Prim(_))
-        && f.ret != Ty::Prim(Prim::Str)
+        && !matches!(f.ret, Ty::Prim(q) if q.is_text())
         && scalar(&ret_tys);
     let attrs: Vec<(Identifier, Attribute)> = if scalar_sig {
         vec![(
@@ -1372,7 +1374,7 @@ impl<'c, 'b, 'p> Emitter<'c, 'b, 'p> {
     ) -> Result<(Value<'c, 'b>, Value<'c, 'b>), Diagnostic> {
         let ctx = self.cx.ctx;
         match ty {
-            Ty::Prim(Prim::Str) => Ok((v[0], v[1])),
+            Ty::Prim(p) if p.is_text() => Ok((v[0], v[1])),
             Ty::Prim(Prim::Bool) => {
                 let (t, f) = (self.str_const(blk, "True"), self.str_const(blk, "False"));
                 let ptr = self.push(

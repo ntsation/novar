@@ -16,6 +16,11 @@ pub enum Prim {
     F64,
     Bool,
     Str,
+    /// A calendar day, written `"2026-10-17"`. Text in the language, an Arrow `Date32` in a table.
+    Date,
+    /// A UTC instant, written `"2026-10-17T16:53:03Z"`. Text in the language, an Arrow
+    /// `Timestamp(µs, UTC)` in a table.
+    Timestamp,
 }
 
 impl Prim {
@@ -33,6 +38,8 @@ impl Prim {
             "f64" => Prim::F64,
             "bool" => Prim::Bool,
             "String" => Prim::Str,
+            "Date" => Prim::Date,
+            "Timestamp" => Prim::Timestamp,
             _ => return None,
         })
     }
@@ -55,6 +62,11 @@ impl Prim {
         matches!(self, Prim::F32 | Prim::F64)
     }
 
+    /// Values are strings: `Text`, `Date` and `Timestamp`.
+    pub fn is_text(self) -> bool {
+        matches!(self, Prim::Str | Prim::Date | Prim::Timestamp)
+    }
+
     pub fn is_numeric(self) -> bool {
         self.is_int() || self.is_float()
     }
@@ -74,6 +86,8 @@ impl Prim {
             Prim::F64 => "Float",
             Prim::Bool => "Bool",
             Prim::Str => "Text",
+            Prim::Date => "Date",
+            Prim::Timestamp => "Timestamp",
         }
     }
 }
@@ -147,7 +161,13 @@ impl Ty {
             (IntVar(_), Prim(p)) | (Prim(p), IntVar(_)) => p.is_int(),
             (FloatVar(_), Prim(p)) | (Prim(p), FloatVar(_)) => p.is_float(),
             (Unit, Unit) => true,
-            (Prim(a), Prim(b)) => a == b,
+            // A `Date` or `Timestamp` is a string that is checked when it enters a table.
+            (Prim(a), Prim(b)) => {
+                a == b
+                    || (a.is_text()
+                        && b.is_text()
+                        && (*a == crate::ty::Prim::Str || *b == crate::ty::Prim::Str))
+            }
             (Struct(a), Struct(b))
             | (Enum(a), Enum(b))
             | (Trait(a), Trait(b))

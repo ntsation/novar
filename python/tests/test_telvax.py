@@ -266,6 +266,36 @@ fn warm(t: Table[Reading]) -> Table[Reading]:
     assert telvax.table(table, "Reading").column("temp") == [21.5, None]
 
 
+def test_dates_and_timestamps_are_arrow_temporal_types():
+    import datetime as dt
+
+    src = """
+type Event:
+    id: Int
+    day: Date
+    at: Timestamp
+
+fn newest(t: Table[Event]) -> Table[Event]:
+    t.sort_by_desc("at").head(1)
+
+fn day_text(t: Table[Event]) -> Text:
+    t[0].day
+"""
+    p = telvax.compile(src)
+    table = pa.table(
+        {
+            "id": pa.array([1, 2], pa.int64()),
+            "day": pa.array([dt.date(2026, 1, 15), dt.date(2026, 3, 2)], pa.date32()),
+            "at": pa.array([dt.datetime(2026, 1, 15, 8, 30), dt.datetime(2026, 3, 2, 23, 59)], pa.timestamp("us", tz="UTC")),
+        }
+    )
+    assert p.call("day_text", table) == "2026-01-15"
+    out = pa.record_batch(p.call("newest", table))
+    assert out.schema.field("day").type == pa.date32()
+    assert out.schema.field("at").type == pa.timestamp("us", tz="UTC")
+    assert out.to_pylist()[0]["day"] == dt.date(2026, 3, 2)
+
+
 def test_polars_frames_are_tables(prog):
     import polars as pl
 

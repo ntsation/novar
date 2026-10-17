@@ -30,7 +30,7 @@ Optional pieces:
 | `--features telvax_cli/gpu` | `--device gpu` | a GPU with Metal, Vulkan or DX12 |
 
 The Python bindings (`python/`), the VS Code extension (`editors/vscode`), the Wasm playground
-(`playground/`) and the documentation site (`site/`) have their own README and tests.
+(`playground/`) and the documentation site (`site/`, published by version, see its README) have their own README and tests.
 
 ## How changes get into `main`
 

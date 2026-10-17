@@ -160,6 +160,25 @@ Polars and pandas also read and write. `read_ipc` maps the file into memory and 
 file with one batch is not copied. Do not rewrite or truncate a file while a table read from it is in use. Files
 compressed with LZ4 or Zstd are decoded (copying) in the full `telvax`; `telvax-lite` reads uncompressed files.
 
+A table can be cut into chunks. `t.split(n)` gives a `List[Table[Row]]` of tables with at most `n` rows each;
+they share the buffers of `t`, so nothing is copied. `std.table.read_csv_batches(path, n)`,
+`read_parquet_batches` and `read_ipc_batches` read a file straight into such chunks (no joined copy of the whole
+file is built), and need the result type written down: `let parts: List[Table[Row]] = ...`. Chunks are all in
+memory at once; a reader that hands them out one at a time does not exist yet.
+
+```telvax
+type Row:
+    id: Int
+    score: f32
+
+fn total_score(path: Text) -> f32:
+    let parts: List[Table[Row]] = std.table.read_parquet_batches(path, 100000)
+    var sum = 0.0
+    for part in parts:
+        sum += part.score.sum()
+    sum
+```
+
 ## HTTP endpoints
 
 ```telvax ignore
@@ -268,7 +287,7 @@ telvax serve app.tvx --live --allow net,env
 
 | Word | Allows |
 |---|---|
-| `fs.read` | `std.fs.read`, `std.fs.exists`, `read_csv`, `read_parquet`, `read_ipc` |
+| `fs.read` | `std.fs.read`, `std.fs.exists`, `read_csv`, `read_parquet`, `read_ipc` and their `_batches` forms |
 | `fs.write` | `std.fs.write`, `write_csv`, `write_parquet`, `write_ipc` |
 | `fs` | `fs.read` and `fs.write` |
 | `env` | `std.env.get` |

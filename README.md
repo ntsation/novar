@@ -121,7 +121,7 @@ specification to what exists, what was verified and how, and what is still open.
 * **Tensors.** `Tensor[f32, 2, 3]` carries its shape: `std.tensor.matmul` of mismatched
   shapes is a compile error. Symbolic dimensions (`[N]`) accept any size.
 * **Tables.** `Table[Row]` is an Arrow table whose columns are the fields of type `Row`;
-  `t.score` is the column as a zero-copy tensor. `head`, `tail`, `sort_by`, `sort_by_desc`, `filter` and `concat`
+  `t.score` is the column as a zero-copy tensor. `head`, `tail`, `sort_by`, `sort_by_desc`, `filter`, `concat` and `split`
   are methods; `sql` runs a query. `read_ipc` / `write_ipc` use Arrow IPC (Feather) files, memory-mapped on
   read. A column typed `T?` may hold nulls, and `Date` / `Timestamp` columns are Arrow temporal types whose
   values are ISO-8601 `Text`.

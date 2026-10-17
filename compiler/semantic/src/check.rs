@@ -268,7 +268,14 @@ fn method_module(ty: &Ty, name: &str) -> Option<&'static str> {
         Ty::Table(_)
             if matches!(
                 name,
-                "sql" | "filter" | "head" | "tail" | "sort_by" | "sort_by_desc" | "concat"
+                "sql"
+                    | "filter"
+                    | "head"
+                    | "tail"
+                    | "sort_by"
+                    | "sort_by_desc"
+                    | "concat"
+                    | "split"
             ) =>
         {
             Some("table")
@@ -4790,9 +4797,8 @@ impl Checker {
             },
             Ty::Table(s) => match n {
                 // A method call: `call` turns it into `std::table::sql(table, ..)`.
-                "sql" | "filter" | "head" | "tail" | "sort_by" | "sort_by_desc" | "concat" => {
-                    Ty::Unknown
-                }
+                "sql" | "filter" | "head" | "tail" | "sort_by" | "sort_by_desc" | "concat"
+                | "split" => Ty::Unknown,
                 "is_empty" => Ty::Fn(vec![], Box::new(Ty::bool())),
                 "len" => Ty::Fn(vec![], Box::new(Ty::Prim(Prim::U64))),
                 _ => {

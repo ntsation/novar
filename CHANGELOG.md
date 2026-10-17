@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* **Site, like the Python manual:** "What's new" (this changelog), an About section (reporting problems and
+  contributing, security, code of conduct, the licenses), and the date each page last changed.
 * **Standard library reference:** `docs/reference/std.md` (and the site) lists every `std` function, type and
   built-in method with its signature and what it does. A test fails when an item has no description, when a
   signature has a different number of parameters than the type checker takes, or when the page is out of date.

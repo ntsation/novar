@@ -2,8 +2,8 @@
 
 The site at <https://telvax.github.io/telvax/>, built with [Starlight](https://starlight.astro.build) (Astro).
 
-The pages are not written here. `npm run sync` copies `docs/guide/*.md` and `docs/reference/std.md` into
-`src/content/docs/`, adds the title Starlight needs and rewrites the links (to other pages, or to the
+The pages are not written here. `npm run sync` copies `docs/guide/*.md`, `docs/reference/std.md`, `CHANGELOG.md`, `CONTRIBUTING.md`, `SECURITY.md`,
+`CODE_OF_CONDUCT.md` and the two licenses into `src/content/docs/`, adds the title Starlight needs and rewrites the links (to other pages, or to the
 repository on GitHub). Edit the files under `docs/`; the copies are ignored by git. Only `src/content/docs/index.mdx`,
 the home page, is written here.
 

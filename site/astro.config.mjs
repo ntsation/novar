@@ -17,6 +17,7 @@ export default defineConfig({
       title: 'Telvax',
       description: 'A statically typed, compiled language for data, ML pipelines and AI serving.',
       social: [{ icon: 'github', label: 'GitHub', href: 'https://github.com/telvax/telvax' }],
+      lastUpdated: true,
       editLink: { baseUrl: 'https://github.com/telvax/telvax/edit/main/' },
       expressiveCode: {
         shiki: {
@@ -29,6 +30,17 @@ export default defineConfig({
         { slug: 'reference/std', label: 'Library reference' },
         { slug: 'guide/use-cases', label: 'HOWTOs: use cases' },
         { slug: 'guide/stability', label: 'Language stability' },
+        { slug: 'whats-new', label: "What's new" },
+        {
+          label: 'About',
+          items: [
+            { slug: 'about/contributing', label: 'Reporting problems and contributing' },
+            { slug: 'about/security', label: 'Security' },
+            { slug: 'about/code-of-conduct', label: 'Code of conduct' },
+            { slug: 'about/license-mit', label: 'License (MIT)' },
+            { slug: 'about/license-apache', label: 'License (Apache 2.0)' },
+          ],
+        },
       ],
     }),
   ],

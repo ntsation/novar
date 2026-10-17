@@ -7,6 +7,8 @@
 pub mod alloc_count;
 mod caps;
 pub mod debug;
+#[cfg(feature = "flight")]
+mod flight;
 #[cfg(feature = "gpu")]
 pub mod gpu;
 mod interp;

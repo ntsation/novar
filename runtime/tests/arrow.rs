@@ -993,6 +993,22 @@ fn arrow_ipc_columns_are_memory_mapped() {
     );
 }
 
+#[cfg(not(feature = "flight"))]
+#[test]
+fn flight_without_the_feature_says_how_to_enable_it() {
+    let i = load(
+        r#"
+type Row:
+    id: Int
+
+fn fetch() -> Table[Row]:
+    std.table.read_flight("grpc://localhost:8815", "t")
+"#,
+    );
+    let e = i.call("fetch", vec![]).map(|_| ()).unwrap_err().to_string();
+    assert!(e.contains("--features flight"), "{e}");
+}
+
 const BATCH_SRC: &str = r#"
 type Row:
     id: Int

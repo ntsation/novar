@@ -53,7 +53,9 @@ impl Capability {
             | "std::table::write_parquet"
             | "std::table::write_ipc" => Capability::FsWrite,
             "std::env::get" => Capability::Env,
-            "std::ai::embeddings::OllamaEmbedder::new"
+            "std::table::read_flight"
+            | "std::table::write_flight"
+            | "std::ai::embeddings::OllamaEmbedder::new"
             | "std::ai::llm::OpenAIClient::new"
             | "std::db::pgvector::PgVectorClient::connect" => Capability::Net,
             _ => return None,

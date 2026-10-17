@@ -901,6 +901,21 @@ fn read_result(_: &[Ty], expected: &Ty) -> Result<Ty, String> {
     expect_table(expected, "a table reader")
 }
 
+fn flight_read_check(args: &[Ty]) -> Result<Ty, String> {
+    arity(args, 2)?;
+    want(args, 0, &s())?;
+    want(args, 1, &s())?;
+    Ok(Ty::Unknown)
+}
+
+fn flight_write_check(args: &[Ty]) -> Result<Ty, String> {
+    arity(args, 3)?;
+    want_table(args, 0)?;
+    want(args, 1, &s())?;
+    want(args, 2, &s())?;
+    Ok(Ty::Unit)
+}
+
 fn batches_check(args: &[Ty]) -> Result<Ty, String> {
     arity(args, 2)?;
     want(args, 0, &s())?;
@@ -1558,6 +1573,10 @@ const FUNCTIONS: &[(&str, Sig)] = &[
         sig_expected(read_check, read_result),
     ),
     (
+        "std::table::read_flight",
+        sig_expected(flight_read_check, read_result),
+    ),
+    (
         "std::table::read_csv_batches",
         sig_expected(batches_check, batches_result),
     ),
@@ -1593,6 +1612,7 @@ const FUNCTIONS: &[(&str, Sig)] = &[
     ("std::table::write_csv", sig(write_table)),
     ("std::table::write_parquet", sig(write_table)),
     ("std::table::write_ipc", sig(write_table)),
+    ("std::table::write_flight", sig(flight_write_check)),
     ("std::table::head", sig(table_head)),
     ("std::table::tail", sig(table_head)),
     ("std::table::sort_by", sig(table_sort)),

@@ -47,6 +47,8 @@ tables = ["telvax_runtime/tables"]
 live = ["telvax_runtime/live"]
 # Run tensor operations on the GPU (`--device gpu`) through wgpu.
 gpu = ["telvax_runtime/gpu"]
+# Arrow Flight client: `std.table.read_flight`, `write_flight`.
+flight = ["telvax_runtime/flight"]
 # Native backend (MLIR + LLVM 22). Needs LLVM installed; see scripts/llvm-env.sh.
 llvm = ["telvax_accel/llvm", "dep:telvax_codegen", "dep:telvax_mlir", "telvax_codegen/llvm", "telvax_mlir/llvm"]
 

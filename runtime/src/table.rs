@@ -712,6 +712,11 @@ fn run_sql(batch: &RecordBatch, query: &str) -> Result<RecordBatch, RuntimeError
     }
 }
 
+#[cfg(not(feature = "flight"))]
+fn flight_unavailable<T>() -> Result<T, RuntimeError> {
+    err("Arrow Flight is not available in this build; build with `--features flight`")
+}
+
 #[cfg(not(feature = "tables"))]
 fn unavailable<T>(what: &str) -> Result<T, RuntimeError> {
     err(format!(
@@ -786,6 +791,39 @@ pub(crate) fn call(interp: &Interp, path: &str, args: &[Value], result: &Ty) -> 
                     .map(|b| table(t.schema.clone(), b))
                     .collect::<Result<_, _>>()?,
             ))
+        }
+        "read_flight" => {
+            let schema = schema_name(result, path)?;
+            let fields = fields_of(interp, &schema)?;
+            let (url, ticket) = (want_str(&args[0])?, want_str(&args[1])?);
+            #[cfg(feature = "flight")]
+            {
+                let batches = crate::flight::read(&url, &ticket)?;
+                let Some(first) = batches.first() else {
+                    return err(format!("the Flight server returned no data for `{ticket}`"));
+                };
+                let all =
+                    concat_batches(&first.schema(), &batches).map_err(io("reading Flight"))?;
+                table(schema, conform(&all, fields)?)
+            }
+            #[cfg(not(feature = "flight"))]
+            {
+                let _ = (fields, url, ticket);
+                flight_unavailable()
+            }
+        }
+        "write_flight" => {
+            let t = want_table(&args[0])?;
+            let (url, name) = (want_str(&args[1])?, want_str(&args[2])?);
+            #[cfg(feature = "flight")]
+            {
+                crate::flight::write(&url, &name, &t.batch).map(|()| Value::Unit)
+            }
+            #[cfg(not(feature = "flight"))]
+            {
+                let _ = (t, url, name);
+                flight_unavailable()
+            }
         }
         "write_ipc" => write_ipc(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),
         "write_csv" => write_csv(want_table(&args[0])?, &want_str(&args[1])?).map(|()| Value::Unit),

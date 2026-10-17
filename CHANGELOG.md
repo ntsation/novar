@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+* **Command line reference:** `docs/reference/cli.md` (and the site) describes every `telvax` command and option.
+  A test checks that its synopsis is the output of `telvax --help` and that each command has a section.
 * **Site, like the Python manual:** "What's new" (this changelog), an About section (reporting problems and
   contributing, security, code of conduct, the licenses), and the date each page last changed.
 * **Standard library reference:** `docs/reference/std.md` (and the site) lists every `std` function, type and

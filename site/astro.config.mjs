@@ -28,6 +28,7 @@ export default defineConfig({
         // The sections of a language manual: tutorial, library reference, how-tos, language rules.
         { slug: 'guide/tour', label: 'Tutorial' },
         { slug: 'reference/std', label: 'Library reference' },
+        { slug: 'reference/cli', label: 'Command line' },
         { slug: 'guide/use-cases', label: 'HOWTOs: use cases' },
         { slug: 'guide/stability', label: 'Language stability' },
         { slug: 'whats-new', label: "What's new" },
